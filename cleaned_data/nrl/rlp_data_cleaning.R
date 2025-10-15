@@ -26,8 +26,10 @@ match_data_cleaned <- match_data |>
   relocate(competition_year, .after = competition) |>
   mutate(home_team = toTitleCase(tolower(home_team)),
          home_team = gsub("\n", " ", home_team),
+         home_team = gsub("\r", "", home_team),
          away_team = toTitleCase(tolower(away_team)),
-         away_team = gsub("\n", " ", away_team)) |>
+         away_team = gsub("\n", " ", away_team),
+         away_team = gsub("\r", "", away_team)) |>
   mutate(date = as_date(gsub("\\w+, (\\d+)\\w+ (\\w+), (\\d+)", "\\1 \\2 \\3", date),
                         format = "%d %B %Y"),
          time = gsub("(\\d+:\\d+ \\w+) \\(local time\\)", "\\1", time),
@@ -92,8 +94,8 @@ team_ids <- c("Adelaide Rams",
               "Cronulla Sutherland Sharks",
               "South Queensland Crushers",
               "South Sydney Rabbitohs",
-              "St George Dragons",
               "St George Illawarra Dragons",
+              "St George Dragons",
               "Sydney Roosters",
               "Canterbury Bankstown Bulldogs",
               "Sydney Roosters",
@@ -141,8 +143,8 @@ team_mascots <- c("Rams",
                   "Sharks",
                   "Crushers",
                   "Rabbitohs",
-                  "St George Dragons",
                   "Dragons",
+                  "St George Dragons",
                   "Roosters",
                   "Bulldogs",
                   "Roosters",
@@ -190,8 +192,8 @@ team_abbr <- c("ADE",
                "CRO",
                "SQC",
                "SOU",
-               "STG",
                "SGI",
+               "STG",
                "SYD",
                "CBY",
                "SYD",
@@ -204,12 +206,16 @@ team_abbr <- c("ADE",
 
 team_data_cleaned <- team_data |>
   unique() |>
-  filter(team_name != "St George Illawarra\nDARGONS") |>
+  filter(team_name != "St George Illawarra\r\nDARGONS") |>
+  filter(team_short != "St George Illawarra") |>
   mutate(team_short = toTitleCase(tolower(team_short)),
          team_short = gsub("\n", " ", team_short),
+         team_short = gsub("\r", "", team_short),
          team_name = toTitleCase(tolower(team_name)),
-         team_name = gsub("\n", " ", team_name)) |>
+         team_name = gsub("\n", " ", team_name),
+         team_name = gsub("\r", "", team_name)) |>
   arrange(team_short) |>
+  distinct() |>
   mutate(team_unique = team_ids,
          team_mascots = team_mascots,
          team_abbr = team_abbr)
@@ -259,9 +265,11 @@ player_names_data_cleaned <- player_names_data |>
   left_join(player_summary_data |> select(-player_birthday),
             by = "player_id") |>
   select(player_id, full_name, player_name1, player_name_comma, nickname, birthday, birthdate, birthplace, total_matches, total_points) |>
+  ##%%##%%##%%##%% TEMPORARY LAST NAME FIX ##%%##%%##%%##%%
+  mutate(
+    player_name_comma = ifelse(is.na(player_name_comma), gsub("^(.+) (.+)$", "\\2, \\1", player_name1), player_name_comma)) |>
   # Fix specific issues
-  mutate(full_name = ifelse(player_id == 9712 & full_name == "H Wright", "Harold Wright", full_name),
-         player_name1 = ifelse(player_id == 9712 & full_name == "H Wright", "Harold WRIGHT", player_name1)) |>
+  mutate(full_name = ifelse(player_id == 48731, "Casey McLean", full_name)) |>
   mutate(first_name = gsub("^(.+), (.+)$","\\2", player_name_comma),
          last_name = ifelse(
            first_name == "?",
@@ -317,8 +325,10 @@ sharks1999_match_ids <- match_data_cleaned |>
 player_match_data_cleaned <- player_match_data |>
   mutate(team = toTitleCase(tolower(team)),
          team = gsub("\n", " ", team),
+         team = gsub("\r", "", team),
          opposition_team = toTitleCase(tolower(opposition_team)),
-         opposition_team = gsub("\n", " ", opposition_team)) |>
+         opposition_team = gsub("\n", " ", opposition_team),
+         opposition_team = gsub("\r", "", opposition_team)) |>
   left_join(player_scoring_data_cleaned, by = c("match_id", "player_id")) %>%
   mutate_at(vars(tries, penalty_tries, goals, field_goals, field_goals2, sin_bins5, sin_bins, send_offs), ~replace_na(., 0)) |>
   left_join(match_data_cleaned |> select(match_id, date), by = "match_id") |>
@@ -387,7 +397,8 @@ coach_match_data <- map(
 coach_match_data_cleaned <- coach_match_data |>
   distinct() |>
   mutate(team = toTitleCase(tolower(team)),
-         team = gsub("\n", " ", team)) |>
+         team = gsub("\n", " ", team),
+         team = gsub("\r", "", team)) |>
   # Clean Sharks 1999
   mutate(team = ifelse(match_id %in% sharks1999_match_ids & team == "Sharks", "Cronulla Sutherland Sharks", team)) |>
   # Clean Dargons
@@ -461,7 +472,7 @@ states <- c("Auckland", "Australian Capital Territory", "Canterbury", "Hawke's B
 countries <- c("Australia", "New Zealand", "United States of America")
 
 venue_data_cleaned <- venue_data |>
-  mutate(location = gsub("\n", ", ", location)) |>
+  mutate(location = gsub("\r\n", ", ", location)) |>
   rowwise() |>
   mutate(country = countries[which(countries %in% str_split(location, ", ")[[1]])],
          states = states[which(states %in% str_split(location, ", ")[[1]])],
